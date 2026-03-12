@@ -1,66 +1,78 @@
 import React, { useState, useEffect } from 'react';
 import {
   View, Text, TextInput, StyleSheet, TouchableOpacity, ScrollView,
-  Alert, Image
+  Alert, Image, useColorScheme, Platform, ActivityIndicator
 } from 'react-native';
 import { collection, addDoc, getDocs, deleteDoc, doc, updateDoc } from 'firebase/firestore';
-import { db } from '../../config/firebaseConfig';
-import { FontAwesome5, Ionicons, MaterialIcons, MaterialCommunityIcons } from '@expo/vector-icons';
+import { db } from '@/config/firbaseConfig';
+import { FontAwesome5, Ionicons, MaterialIcons, MaterialCommunityIcons, Feather } from '@expo/vector-icons';
 import { Picker } from '@react-native-picker/picker';
+import { Colors } from '@/constants/Colors'; // Your optimized theme
 
 export default function ManageBuses() {
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
   const [busNumber, setBusNumber] = useState('');
   const [routeId, setRouteId] = useState('');
-  const [routes, setRoutes] = useState([]);
-  const [drivers, setDrivers] = useState([]);
-  const [editingId, setEditingId] = useState(null);
+  const [routes, setRoutes] = useState<any[]>([]);
+  const [drivers, setDrivers] = useState<any[]>([]);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  const colorScheme = useColorScheme() ?? 'light';
+  const theme = Colors[colorScheme];
 
   useEffect(() => {
-    const fetchData = async () => {
-      const routeSnapshot = await getDocs(collection(db, 'routes'));
-      const routeList = routeSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-      setRoutes(routeList);
-
-      const driverSnapshot = await getDocs(collection(db, 'drivers'));
-      const driverList = driverSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-      setDrivers(driverList);
-    };
     fetchData();
   }, []);
 
+  const fetchData = async () => {
+    try {
+      setLoading(true);
+      const routeSnapshot = await getDocs(collection(db, 'routes'));
+      setRoutes(routeSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+
+      const driverSnapshot = await getDocs(collection(db, 'drivers'));
+      setDrivers(driverSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+    } catch (error) {
+      Alert.alert('Error', 'Failed to fetch directory data');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleAddOrUpdateDriver = async () => {
     if (!name || !phone || !routeId || !busNumber) {
-      Alert.alert('Error', 'Please fill all fields');
+      Alert.alert('Incomplete Form', 'Please fill all fields to register a driver.');
       return;
     }
 
     try {
+      const driverData = { name, phone, routeId, busNumber };
       if (editingId) {
-        await updateDoc(doc(db, 'drivers', editingId), { name, phone, routeId, busNumber });
-        Alert.alert('Updated', 'Driver updated successfully');
+        await updateDoc(doc(db, 'drivers', editingId), driverData);
+        Alert.alert('Updated', 'Personnel record updated successfully.');
       } else {
-        await addDoc(collection(db, 'drivers'), { name, phone, routeId, busNumber });
-        Alert.alert('Success', 'Driver created successfully!');
+        await addDoc(collection(db, 'drivers'), driverData);
+        Alert.alert('Success', 'New driver registered to the GNA fleet!');
       }
 
-      setName('');
-      setPhone('');
-      setRouteId('');
-      setBusNumber('');
-      setEditingId(null);
-
-      const driverSnapshot = await getDocs(collection(db, 'drivers'));
-      const driverList = driverSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-      setDrivers(driverList);
+      resetForm();
+      fetchData();
     } catch (error) {
-      Alert.alert('Error', 'Failed to save driver');
-      console.error(error);
+      Alert.alert('Error', 'Failed to save record.');
     }
   };
 
-  const handleEdit = (driver) => {
+  const resetForm = () => {
+    setName('');
+    setPhone('');
+    setRouteId('');
+    setBusNumber('');
+    setEditingId(null);
+  };
+
+  const handleEdit = (driver: any) => {
     setName(driver.name);
     setPhone(driver.phone);
     setRouteId(driver.routeId);
@@ -68,86 +80,126 @@ export default function ManageBuses() {
     setEditingId(driver.id);
   };
 
-  const handleDelete = async (id) => {
-    try {
-      await deleteDoc(doc(db, 'drivers', id));
-      setDrivers(drivers.filter(driver => driver.id !== id));
-    } catch (error) {
-      Alert.alert('Error', 'Failed to delete driver');
-      console.error(error);
-    }
+  const handleDelete = async (id: string) => {
+    Alert.alert('Confirm Deletion', 'Remove this driver from the active fleet?', [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Delete',
+        style: 'destructive',
+        onPress: async () => {
+          await deleteDoc(doc(db, 'drivers', id));
+          setDrivers(drivers.filter(d => d.id !== id));
+        }
+      }
+    ]);
   };
 
+  if (loading) return (
+    <View style={[styles.centered, { backgroundColor: theme.background }]}>
+      <ActivityIndicator size="large" color="#4a90e2" />
+    </View>
+  );
+
   return (
-    <ScrollView contentContainerStyle={styles.container}>
-      <Text style={styles.heading}>🚌 Manage Buses & Drivers</Text>
-      <Image source={require('../../assets/images/bus-driver.png')} style={styles.image} />
+    <ScrollView 
+      style={[styles.main, { backgroundColor: theme.background }]} 
+      contentContainerStyle={styles.container}
+      showsVerticalScrollIndicator={false}
+    >
+      <Text style={[styles.heading, { color: theme.text }]}>Fleet Personnel</Text>
+      
+      {/* 1. Registration Card */}
+      <View style={[styles.glassCard, { backgroundColor: colorScheme === 'light' ? '#fff' : '#1C1C1E' }]}>
+        <Text style={[styles.cardTitle, { color: theme.text }]}>
+          {editingId ? '✏️ Edit Profile' : '➕ Register Driver'}
+        </Text>
 
-      <View style={styles.card}>
-        <Text style={styles.subheading}>👨‍✈️ {editingId ? 'Edit Driver' : 'Create New Driver'}</Text>
-
-        <View style={styles.inputContainer}>
-          <FontAwesome5 name="user" size={20} color="#888" />
+        <View style={[styles.inputGroup, { backgroundColor: colorScheme === 'light' ? '#F2F2F7' : '#2C2C2E' }]}>
+          <FontAwesome5 name="id-card" size={16} color={theme.icon} />
           <TextInput
-            placeholder="Driver Name"
+            placeholder="Driver Full Name"
+            placeholderTextColor={theme.icon}
             value={name}
             onChangeText={setName}
-            style={styles.input}
+            style={[styles.input, { color: theme.text }]}
           />
         </View>
 
-        <View style={styles.inputContainer}>
-          <Ionicons name="call" size={20} color="#888" />
+        <View style={[styles.inputGroup, { backgroundColor: colorScheme === 'light' ? '#F2F2F7' : '#2C2C2E' }]}>
+          <Ionicons name="call-outline" size={18} color={theme.icon} />
           <TextInput
-            placeholder="Phone Number"
+            placeholder="Mobile Number"
+            placeholderTextColor={theme.icon}
             keyboardType="phone-pad"
             value={phone}
             onChangeText={setPhone}
-            style={styles.input}
+            style={[styles.input, { color: theme.text }]}
           />
         </View>
 
-        <View style={styles.inputContainer}>
-          <MaterialCommunityIcons name="bus" size={20} color="#888" />
+        <View style={[styles.inputGroup, { backgroundColor: colorScheme === 'light' ? '#F2F2F7' : '#2C2C2E' }]}>
+          <MaterialCommunityIcons name="bus-side" size={20} color={theme.icon} />
           <TextInput
-            placeholder="Bus Number"
+            placeholder="Assigned Bus Number"
+            placeholderTextColor={theme.icon}
             value={busNumber}
             onChangeText={setBusNumber}
-            style={styles.input}
+            style={[styles.input, { color: theme.text }]}
           />
         </View>
 
-        <View style={styles.pickerContainer}>
+        <View style={[styles.pickerBox, { backgroundColor: colorScheme === 'light' ? '#F2F2F7' : '#2C2C2E' }]}>
           <Picker
             selectedValue={routeId}
-            onValueChange={(value) => setRouteId(value)}
-            style={styles.picker}
+            onValueChange={setRouteId}
+            style={{ color: theme.text }}
+            dropdownIconColor={theme.icon}
           >
-            <Picker.Item label="Select Route" value="" />
-            {routes.map(route => (
-              <Picker.Item key={route.id} label={route.name || route.id} value={route.id} />
-            ))}
+            <Picker.Item label="Select Route Assignment" value="" color={theme.icon} />
+            {routes.map(r => <Picker.Item key={r.id} label={r.name} value={r.id} />)}
           </Picker>
         </View>
 
-        <TouchableOpacity style={styles.button} onPress={handleAddOrUpdateDriver}>
-          <Text style={styles.buttonText}>{editingId ? 'Update Driver' : 'Add Driver'}</Text>
+        <TouchableOpacity style={styles.submitBtn} onPress={handleAddOrUpdateDriver}>
+          <Text style={styles.submitBtnText}>{editingId ? 'Update Record' : 'Register to Fleet'}</Text>
         </TouchableOpacity>
+        
+        {editingId && (
+          <TouchableOpacity onPress={resetForm} style={styles.cancelBtn}>
+            <Text style={[styles.cancelBtnText, { color: theme.icon }]}>Discard Changes</Text>
+          </TouchableOpacity>
+        )}
       </View>
 
-      <Text style={styles.subheading}>📋 Existing Drivers</Text>
+      {/* 2. Driver Directory Section */}
+      <Text style={[styles.sectionTitle, { color: theme.text }]}>Fleet Directory</Text>
+      
       {drivers.map(driver => (
-        <View key={driver.id} style={styles.driverCard}>
-          <View>
-            <Text style={styles.driverText}>👤 {driver.name} | 📞 {driver.phone}</Text>
-            <Text style={{ color: '#666' }}>🚌 Bus: {driver.busNumber} | 🗺️ Route: {driver.routeId}</Text>
+        <View key={driver.id} style={[styles.driverCard, { backgroundColor: colorScheme === 'light' ? '#fff' : '#1C1C1E' }]}>
+          <View style={styles.driverInfo}>
+            <View style={[styles.avatarCircle, { backgroundColor: '#4a90e2' }]}>
+              <Text style={styles.avatarChar}>{driver.name?.charAt(0)}</Text>
+            </View>
+            <View style={styles.details}>
+              <Text style={[styles.nameText, { color: theme.text }]}>{driver.name}</Text>
+              <Text style={[styles.subText, { color: theme.icon }]}>📞 {driver.phone}</Text>
+              <View style={styles.badgeRow}>
+                 <View style={styles.busBadge}>
+                    <Text style={styles.badgeText}>BUS {driver.busNumber}</Text>
+                 </View>
+                 <View style={[styles.busBadge, { backgroundColor: 'rgba(32, 191, 107, 0.1)' }]}>
+                    <Text style={[styles.badgeText, { color: '#20bf6b' }]}>ACTIVE</Text>
+                 </View>
+              </View>
+            </View>
           </View>
-          <View style={styles.driverActions}>
-            <TouchableOpacity onPress={() => handleEdit(driver)}>
-              <MaterialIcons name="edit" size={30} color="#20bf6b" />
+          
+          <View style={styles.actions}>
+            <TouchableOpacity style={styles.actionBtn} onPress={() => handleEdit(driver)}>
+              <Feather name="edit-2" size={18} color="#20bf6b" />
             </TouchableOpacity>
-            <TouchableOpacity onPress={() => handleDelete(driver.id)}>
-              <MaterialIcons name="delete" size={30} color="#20bf6b" />
+            <TouchableOpacity style={styles.actionBtn} onPress={() => handleDelete(driver.id)}>
+              <Feather name="trash-2" size={18} color="#eb3b5a" />
             </TouchableOpacity>
           </View>
         </View>
@@ -157,95 +209,59 @@ export default function ManageBuses() {
 }
 
 const styles = StyleSheet.create({
-  container: {
-    padding: 20,
-    backgroundColor: '#f1f2f6',
-    alignItems: 'center',
+  main: { flex: 1 },
+  centered: { flex: 1, justifyContent: 'center', alignItems: 'center' },
+  container: { padding: 24, paddingTop: 40 },
+  heading: { fontSize: 28, fontWeight: '900', marginBottom: 24, letterSpacing: -1 },
+  glassCard: {
+    borderRadius: 28,
+    padding: 24,
+    marginBottom: 32,
+    ...Platform.select({
+      ios: { shadowColor: '#000', shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.05, shadowRadius: 15 },
+      android: { elevation: 3 },
+    }),
   },
-  heading: {
-    fontSize: 26,
-    fontWeight: 'bold',
-    marginBottom: 12,
-    textAlign: 'center',
-  },
-  image: {
-    width: 240,
-    height: 140,
-    marginBottom: 20,
-    resizeMode: 'contain',
-  },
-  card: {
-    backgroundColor: '#fff',
-    padding: 20,
-    width: '100%',
-    borderRadius: 14,
-    elevation: 4,
-    marginBottom: 24,
-  },
-  subheading: {
-    fontSize: 20,
-    fontWeight: '600',
-    marginBottom: 16,
-    textAlign: 'center',
-  },
-  inputContainer: {
+  cardTitle: { fontSize: 18, fontWeight: '800', marginBottom: 20 },
+  inputGroup: {
     flexDirection: 'row',
     alignItems: 'center',
-    borderWidth: 1,
-    borderColor: '#ccc',
-    borderRadius: 10,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    marginBottom: 14,
-    backgroundColor: '#fafafa',
+    borderRadius: 14,
+    paddingHorizontal: 16,
+    height: 58,
+    marginBottom: 12,
   },
-  input: {
-    marginLeft: 10,
-    flex: 1,
-    fontSize: 16,
-  },
-  pickerContainer: {
-    borderWidth: 1,
-    borderColor: '#ccc',
-    borderRadius: 10,
-    marginBottom: 14,
-    padding: 5,
-    backgroundColor: '#fafafa',
-  },
-  picker: {
-    height: 60,
-    width: '100%',
-    paddingHorizontal: 10,
-  },
-  button: {
+  input: { flex: 1, marginLeft: 12, fontSize: 16, fontWeight: '500' },
+  pickerBox: { borderRadius: 14, marginBottom: 16, height: 58, justifyContent: 'center' },
+  submitBtn: {
     backgroundColor: '#4a90e2',
-    paddingVertical: 14,
-    borderRadius: 10,
+    height: 58,
+    borderRadius: 14,
+    justifyContent: 'center',
+    alignItems: 'center',
     marginTop: 8,
   },
-  buttonText: {
-    color: '#fff',
-    fontWeight: '600',
-    fontSize: 16,
-    textAlign: 'center',
-  },
+  submitBtnText: { color: '#fff', fontSize: 16, fontWeight: '800' },
+  cancelBtn: { marginTop: 16, alignItems: 'center' },
+  cancelBtnText: { fontWeight: '700', fontSize: 14 },
+  sectionTitle: { fontSize: 20, fontWeight: '800', marginBottom: 16, marginLeft: 4 },
   driverCard: {
     flexDirection: 'row',
-    backgroundColor: '#fff',
-    padding: 16,
-    borderRadius: 10,
-    marginBottom: 12,
-    width: '100%',
+    alignItems: 'center',
+    padding: 18,
+    borderRadius: 24,
+    marginBottom: 14,
     justifyContent: 'space-between',
   },
-  driverText: {
-    fontSize: 16,
-    fontWeight: '600',
-    marginBottom: 4,
-  },
-  driverActions: {
-    flexDirection: 'column',
-    justifyContent: 'space-between',
-    marginTop: 8,
-  },
+  driverInfo: { flexDirection: 'row', alignItems: 'center', flex: 1 },
+  avatarCircle: { width: 56, height: 56, borderRadius: 20, justifyContent: 'center', alignItems: 'center' },
+  avatarChar: { color: '#fff', fontSize: 22, fontWeight: '900' },
+  details: { marginLeft: 16, flex: 1 },
+  nameText: { fontSize: 18, fontWeight: '800', letterSpacing: -0.3 },
+  subText: { fontSize: 14, marginTop: 2, fontWeight: '500' },
+  badgeRow: { marginTop: 8, flexDirection: 'row', gap: 8 },
+  busBadge: { backgroundColor: 'rgba(74, 144, 226, 0.1)', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 8 },
+  badgeText: { color: '#4a90e2', fontSize: 10, fontWeight: '900', letterSpacing: 0.5 },
+  actions: { gap: 18, marginLeft: 10 },
+  actionBtn: { padding: 4 },
 });

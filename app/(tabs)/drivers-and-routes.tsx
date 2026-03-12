@@ -6,10 +6,15 @@ import {
   FlatList,
   ActivityIndicator,
   Image,
+  useColorScheme,
+  Platform,
+  TouchableOpacity,
+  Linking
 } from 'react-native';
-import { Ionicons, FontAwesome5, MaterialIcons } from '@expo/vector-icons';
+import { Ionicons, FontAwesome5, MaterialIcons, Feather } from '@expo/vector-icons';
 import { collection, getDocs, doc, getDoc } from 'firebase/firestore';
-import { db } from '../../config/firebaseConfig';
+import { db } from '@/config/firbaseConfig';
+import { Colors } from '@/constants/Colors'; // Your optimized theme
 
 interface Driver {
   id: string;
@@ -28,6 +33,9 @@ function DriversAndRoutesScreen() {
   const [drivers, setDrivers] = useState<Driver[]>([]);
   const [routes, setRoutes] = useState<Record<string, Route>>({});
   const [loading, setLoading] = useState(true);
+  
+  const colorScheme = useColorScheme() ?? 'light';
+  const theme = Colors[colorScheme];
 
   useEffect(() => {
     const fetchDriversAndRoutes = async () => {
@@ -49,7 +57,7 @@ function DriversAndRoutesScreen() {
         routeDocs.forEach((routeDoc) => {
           if (routeDoc.exists()) {
             const data = routeDoc.data() as Route;
-            routeMap[routeDoc.id] = {  ...data,id: routeDoc.id };
+            routeMap[routeDoc.id] = { ...data, id: routeDoc.id };
           }
         });
 
@@ -64,125 +72,203 @@ function DriversAndRoutesScreen() {
     fetchDriversAndRoutes();
   }, []);
 
+  const handleCall = (phoneNumber: string) => {
+    Linking.openURL(`tel:${phoneNumber}`);
+  };
+
   if (loading) {
     return (
-      <View style={styles.centered}>
+      <View style={[styles.centered, { backgroundColor: theme.background }]}>
         <ActivityIndicator size="large" color="#4a90e2" />
+        <Text style={{ marginTop: 12, color: theme.icon, fontWeight: '600' }}>Syncing Fleet Directory...</Text>
       </View>
     );
   }
 
   return (
-    <FlatList
-      data={drivers}
-      keyExtractor={(item) => item.id}
-      contentContainerStyle={styles.container}
-      renderItem={({ item }) => {
-        const route = routes[item.routeId];
-        return (
-          <View style={styles.card}>
-            <View style={styles.row}>
-              <Image
-                source={{
-                  uri: 'https://cdn-icons-png.flaticon.com/512/1995/1995535.png',
-                }}
-                style={styles.avatar}
-              />
-              <View style={styles.details}>
-                <Text style={styles.name}>{item.name}</Text>
-                <View style={styles.infoRow}>
-                  <Ionicons name="call" size={18} color="#2d3436" />
-                  <Text style={styles.text}>{item.phone}</Text>
+    <View style={{ flex: 1, backgroundColor: theme.background }}>
+      <FlatList
+        data={drivers}
+        keyExtractor={(item) => item.id}
+        contentContainerStyle={styles.container}
+        showsVerticalScrollIndicator={false}
+        ListHeaderComponent={
+          <View style={styles.headerArea}>
+            <Text style={[styles.title, { color: theme.text }]}>Transport Staff</Text>
+            <Text style={[styles.subtitle, { color: theme.icon }]}>Official GNA University driver directory</Text>
+          </View>
+        }
+        renderItem={({ item }) => {
+          const route = routes[item.routeId];
+          return (
+            <View style={[styles.card, { backgroundColor: colorScheme === 'light' ? '#fff' : '#1C1C1E' }]}>
+              {/* Profile Section */}
+              <View style={styles.row}>
+                <View style={[styles.avatarCircle, { backgroundColor: '#4a90e2' }]}>
+                   <Text style={styles.avatarText}>{item.name?.charAt(0).toUpperCase()}</Text>
+                </View>
+                <View style={styles.details}>
+                  <Text style={[styles.name, { color: theme.text }]}>{item.name}</Text>
+                  <View style={styles.roleBadge}>
+                    <Text style={styles.roleText}>VERIFIED DRIVER</Text>
+                  </View>
+                </View>
+                <TouchableOpacity 
+                  style={styles.callBtn} 
+                  onPress={() => handleCall(item.phone)}
+                >
+                  <Ionicons name="call" size={20} color="#fff" />
+                </TouchableOpacity>
+              </View>
+
+              <View style={styles.divider} />
+
+              {/* Route Details */}
+              <View style={styles.infoRow}>
+                <View style={[styles.iconBox, { backgroundColor: '#4a90e215' }]}>
+                   <MaterialIcons name="alt-route" size={20} color="#4a90e2" />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={[styles.label, { color: theme.icon }]}>ASSIGNED ROUTE</Text>
+                  <Text style={[styles.routeValue, { color: theme.text }]}>
+                    {route ? route.name : 'System Mapping...'}
+                  </Text>
                 </View>
               </View>
-            </View>
 
-            <View style={styles.infoRow}>
-              <MaterialIcons name="route" size={20} color="#0984e3" />
-              <Text style={styles.route}>
-                {route ? route.name : 'Unknown Route'}
-              </Text>
+              {route?.stops && (
+                <View style={[styles.infoRow, { alignItems: 'flex-start' }]}>
+                  <View style={[styles.iconBox, { backgroundColor: '#20bf6b15' }]}>
+                     <FontAwesome5 name="map-marker-alt" size={16} color="#20bf6b" />
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={[styles.label, { color: theme.icon }]}>STOPS</Text>
+                    <Text style={[styles.stops, { color: theme.icon }]}>
+                      {route.stops.join('  •  ')}
+                    </Text>
+                  </View>
+                </View>
+              )}
             </View>
-
-            {route?.stops && (
-              <View style={styles.infoRow}>
-                <FontAwesome5 name="map-marker-alt" size={18} color="#e17055" />
-                <Text style={styles.stops}>
-                  {route.stops.join(', ')}
-                </Text>
-              </View>
-            )}
-          </View>
-        );
-      }}
-    />
+          );
+        }}
+      />
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
-    padding: 16,
-    backgroundColor: '#f0f4f8',
+    padding: 24,
+    paddingTop: 60,
   },
   centered: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
   },
+  headerArea: {
+    marginBottom: 32,
+  },
+  title: {
+    fontSize: 32,
+    fontWeight: '900',
+    letterSpacing: -1,
+  },
+  subtitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    marginTop: 4,
+  },
   card: {
-    backgroundColor: '#ffffff',
-    borderRadius: 16,
-    padding: 16,
-    marginBottom: 16,
-    shadowColor: '#000',
-    shadowOpacity: 0.1,
-    shadowOffset: { width: 0, height: 4 },
-    shadowRadius: 6,
-    elevation: 3,
+    borderRadius: 28,
+    padding: 20,
+    marginBottom: 20,
+    ...Platform.select({
+      ios: { shadowColor: '#000', shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.05, shadowRadius: 15 },
+      android: { elevation: 3 },
+    }),
   },
   row: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 12,
+    marginBottom: 16,
   },
-  avatar: {
+  avatarCircle: {
     width: 56,
     height: 56,
-    borderRadius: 28,
-    backgroundColor: '#dfe6e9',
+    borderRadius: 18,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  avatarText: {
+    color: '#fff',
+    fontSize: 22,
+    fontWeight: '900',
   },
   details: {
-    marginLeft: 12,
+    marginLeft: 16,
     flex: 1,
   },
   name: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#2d3436',
-    marginBottom: 4,
+    fontSize: 19,
+    fontWeight: '800',
+    letterSpacing: -0.5,
+  },
+  roleBadge: {
+    backgroundColor: 'rgba(74, 144, 226, 0.1)',
+    alignSelf: 'flex-start',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 6,
+    marginTop: 4,
+  },
+  roleText: {
+    color: '#4a90e2',
+    fontSize: 9,
+    fontWeight: '900',
+    letterSpacing: 0.5,
+  },
+  callBtn: {
+    backgroundColor: '#20bf6b',
+    width: 44,
+    height: 44,
+    borderRadius: 14,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  divider: {
+    height: 1,
+    backgroundColor: 'rgba(128,128,128,0.08)',
+    marginBottom: 20,
   },
   infoRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginTop: 6,
+    marginBottom: 16,
   },
-  text: {
-    marginLeft: 8,
-    fontSize: 15,
-    color: '#636e72',
+  iconBox: {
+    width: 40,
+    height: 40,
+    borderRadius: 12,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 16,
   },
-  route: {
-    marginLeft: 8,
-    fontSize: 15,
-    color: '#0984e3',
-    fontWeight: '600',
+  label: {
+    fontSize: 10,
+    fontWeight: '800',
+    letterSpacing: 1,
+    marginBottom: 2,
+  },
+  routeValue: {
+    fontSize: 16,
+    fontWeight: '700',
   },
   stops: {
-    marginLeft: 8,
-    fontSize: 14,
-    color: '#636e72',
-    flexWrap: 'wrap',
-    flex: 1,
+    fontSize: 13,
+    fontWeight: '600',
+    lineHeight: 18,
   },
 });
 

@@ -1,29 +1,53 @@
-import { Tabs } from 'expo-router';
-import { Ionicons, MaterialCommunityIcons, FontAwesome5 } from '@expo/vector-icons';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { Colors } from "@/constants/Colors"; // Your optimized theme
+import {
+  FontAwesome5,
+  Ionicons,
+  MaterialCommunityIcons,
+} from "@expo/vector-icons";
+import { Tabs } from "expo-router";
+import { useColorScheme } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 export default function TabsLayout() {
   const insets = useSafeAreaInsets();
+  const colorScheme = useColorScheme() ?? "light";
+  const theme = Colors[colorScheme];
 
   return (
     <Tabs
       screenOptions={{
-        tabBarActiveTintColor: '#4a90e2',
-        tabBarInactiveTintColor: '#b2bec3',
-        tabBarLabelStyle: { fontSize: 12, fontWeight: '600' },
+        tabBarActiveTintColor: "#4a90e2", // Professional Blue
+        tabBarInactiveTintColor: theme.icon, // Dynamic gray
+        tabBarLabelStyle: {
+          fontSize: 11,
+          fontWeight: "700",
+          // Removed Fonts.sans to prevent the "undefined" error
+        },
         tabBarStyle: {
-          height: 60 + insets.bottom, // Adjust height based on safe area
+          height: 60 + insets.bottom,
           paddingBottom: insets.bottom > 0 ? insets.bottom : 10,
-          paddingTop: 6,
+          paddingTop: 8,
+          backgroundColor: theme.background, // Matches page background
+          borderTopWidth: 1,
+          borderTopColor: theme.border || "rgba(128,128,128,0.1)", // Dynamic border
+          elevation: 0,
+          shadowOpacity: 0,
+        },
+        headerStyle: {
+          backgroundColor: theme.background, // Dynamic header
+        },
+        headerTitleStyle: {
+          color: theme.text, // Dynamic text
+          fontWeight: "800",
         },
       }}
     >
       <Tabs.Screen
         name="home"
         options={{
-          title: 'Home',
+          title: "Home",
           tabBarIcon: ({ color, size }) => (
-            <Ionicons name="home" size={size + 2} color={color} />
+            <Ionicons name="home-sharp" size={size} color={color} />
           ),
         }}
       />
@@ -31,9 +55,13 @@ export default function TabsLayout() {
       <Tabs.Screen
         name="bus-location"
         options={{
-          title: 'Track Bus',
+          title: "Track",
           tabBarIcon: ({ color, size }) => (
-            <MaterialCommunityIcons name="bus-clock" size={size + 4} color={color} />
+            <MaterialCommunityIcons
+              name="bus-marker"
+              size={size + 4}
+              color={color}
+            />
           ),
         }}
       />
@@ -41,9 +69,9 @@ export default function TabsLayout() {
       <Tabs.Screen
         name="profile"
         options={{
-          title: 'Profile',
+          title: "Profile",
           tabBarIcon: ({ color, size }) => (
-            <Ionicons name="person-circle" size={size + 2} color={color} />
+            <Ionicons name="person-circle" size={size + 4} color={color} />
           ),
         }}
       />
@@ -51,9 +79,9 @@ export default function TabsLayout() {
       <Tabs.Screen
         name="index"
         options={{
-          title: 'Dashboard',
+          title: "Dashboard",
           tabBarIcon: ({ color, size }) => (
-            <Ionicons name="grid-outline" size={size + 2} color={color} />
+            <Ionicons name="grid" size={size} color={color} />
           ),
         }}
       />
@@ -61,9 +89,9 @@ export default function TabsLayout() {
       <Tabs.Screen
         name="drivers-and-routes"
         options={{
-          title: 'Drivers',
+          title: "Directory",
           tabBarIcon: ({ color, size }) => (
-            <FontAwesome5 name="user-tie" size={size + 2} color={color} />
+            <FontAwesome5 name="address-book" size={size - 2} color={color} />
           ),
         }}
       />

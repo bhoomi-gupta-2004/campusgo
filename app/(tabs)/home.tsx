@@ -1,8 +1,15 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, ActivityIndicator } from 'react-native';
+import { 
+  View, Text, StyleSheet, ScrollView, ActivityIndicator, 
+  useColorScheme, Platform, Dimensions, TouchableOpacity 
+} from 'react-native';
 import { collection, doc, getDocs, getDoc, onSnapshot } from 'firebase/firestore';
-import { db } from '../../config/firebaseConfig';
-import { FontAwesome5, MaterialCommunityIcons, Entypo, Feather } from '@expo/vector-icons';
+import { db } from '@/config/firbaseConfig';
+import { FontAwesome5, MaterialCommunityIcons, Entypo, Feather, Ionicons } from '@expo/vector-icons';
+import { Colors } from '@/constants/Colors';
+
+
+const { width } = Dimensions.get('window');
 
 function Home() {
   const [stats, setStats] = useState({
@@ -14,149 +21,175 @@ function Home() {
   });
 
   const [loading, setLoading] = useState(true);
+  const colorScheme = useColorScheme() ?? 'light';
+  const theme = Colors[colorScheme];
 
   useEffect(() => {
-    // Listen to buses collection
-    const unsubBuses = onSnapshot(collection(db, 'drivers'), snapshot => {
-      setStats(prev => ({ ...prev, totalBuses: snapshot.size }));
+    
+    const unsubBuses = onSnapshot(collection(db, 'drivers'), s => setStats(p => ({ ...p, totalBuses: s.size })));
+    const unsubDrivers = onSnapshot(collection(db, 'drivers'), s => setStats(p => ({ ...p, totalDrivers: s.size })));
+    const unsubUsers = onSnapshot(collection(db, 'users'), s => {
+      const students = s.docs.filter(d => d.data().role === 'Student').length;
+      const teachers = s.docs.filter(d => d.data().role === 'Teacher').length;
+      setStats(p => ({ ...p, totalStudentsToday: students, totalTeachers: teachers }));
     });
 
-    // Listen to drivers collection
-    const unsubDrivers = onSnapshot(collection(db, 'drivers'), snapshot => {
-      setStats(prev => ({ ...prev, totalDrivers: snapshot.size }));
-    });
-
-    // Listen to users collection
-    const unsubUsers = onSnapshot(collection(db, 'users'), snapshot => {
-      const students = snapshot.docs.filter(doc => doc.data().role === 'student').length;
-      const teachers = snapshot.docs.filter(doc => doc.data().role === 'teacher').length;
-      setStats(prev => ({ ...prev, totalStudentsToday: students, totalTeachers: teachers }));
-    });
-
-    // Fetch attendance once for today's date
     const fetchAttendance = async () => {
-      const todayKey = new Date().toISOString().split('T')[0];
-      const busesSnapshot = await getDocs(collection(db, 'attendance'));
+     const unsubAttendance = onSnapshot(collection(db, 'attendance'), async (snap) => {
+  const todayKey = new Date().toISOString().split('T')[0];
 
-      let totalRecords = 0;
-      let totalPresent = 0;
+  let total = 0;
+  let present = 0;
 
-      for (const busDoc of busesSnapshot.docs) {
-        const attendanceDocRef = doc(db, 'attendance', busDoc.id, 'records', todayKey);
-        const attendanceSnap = await getDoc(attendanceDocRef);
+  for (const bus of snap.docs) {
+    const recRef = doc(db, 'attendance', bus.id, 'records', todayKey);
+    const recSnap = await getDoc(recRef);
 
-        if (attendanceSnap.exists()) {
-          const records = attendanceSnap.data().records;
-          totalRecords += Object.keys(records).length;
-          totalPresent += Object.values(records).filter(status => status === 'present').length;
-        }
-      }
+    if (recSnap.exists()) {
+      const r = recSnap.data().records;
+      total += Object.keys(r).length;
+      present += Object.values(r).filter(s => s === 'present').length;
+    }
+  }
 
-      const percentage = totalRecords > 0 ? Math.round((totalPresent / totalRecords) * 100) : 0;
-      setStats(prev => ({ ...prev, attendancePercentage: percentage }));
-      setLoading(false);
+  setStats(p => ({
+    ...p,
+    attendancePercentage: total > 0 ? Math.round((present / total) * 100) : 0,
+  }));
+
+  setLoading(false);
+});
     };
-
     fetchAttendance();
-
-    return () => {
-      unsubBuses();
-      unsubDrivers();
-      unsubUsers();
-    };
+    return () => { unsubBuses(); unsubDrivers(); unsubUsers(); };
   }, []);
 
   if (loading) {
     return (
-      <View style={[styles.container, { justifyContent: 'center' }]}>
+      <View style={[styles.centered, { backgroundColor: theme.background }]}>
         <ActivityIndicator size="large" color="#4a90e2" />
       </View>
     );
   }
 
   return (
-    <ScrollView contentContainerStyle={styles.container}>
-      <Text style={styles.header}>Welcome to Bus Tracking App 🚍</Text>
-
-      <View style={styles.card}>
-        <FontAwesome5 name="bus" size={26} color="#2563eb" />
-        <Text style={styles.cardTitle}>Total Buses</Text>
-        <Text style={styles.cardValue}>{stats.totalBuses}</Text>
+    <ScrollView style={[styles.main, { backgroundColor: theme.background }]} showsVerticalScrollIndicator={false}>
+     
+<View
+        style={[styles.heroCard, { backgroundColor: '#4a90e2' }]} 
+      >
+        <View style={styles.heroContent}>
+          <View>
+            <Text style={styles.heroLabel}>Live Attendance</Text>
+            <Text style={styles.heroValue}>{stats.attendancePercentage}%</Text>
+            <Text style={styles.heroSubtext}>Fleet capacity utilized today</Text>
+          </View>
+          <View style={styles.heroIconCircle}>
+            <MaterialCommunityIcons name="chart-donut" size={50} color="#fff" />
+          </View>
+        </View>
+        <View style={styles.progressBarBg}>
+          <View style={[styles.progressBarFill, { width: `${stats.attendancePercentage}%` }]} />
+        </View>
       </View>
 
-      <View style={styles.card}>
-        <MaterialCommunityIcons name="account-tie" size={28} color="#2563eb" />
-        <Text style={styles.cardTitle}>Total Drivers</Text>
-        <Text style={styles.cardValue}>{stats.totalDrivers}</Text>
-      </View>
+      <View style={styles.contentContainer}>
+        <Text style={[styles.sectionTitle, { color: theme.text }]}>Quick Insights</Text>
+        
+        
+        <View style={styles.gridContainer}>
+          <View style={styles.column}>
+            <InsightCard 
+              label="Buses" value={stats.totalBuses} color="#2563eb" 
+              icon={<FontAwesome5 name="bus" size={20} color="#fff" />} 
+              theme={theme} dark={colorScheme === 'dark'}
+            />
+            <InsightCard 
+              label="Staff" value={stats.totalTeachers} color="#db2777" 
+              icon={<Feather name="user-check" size={20} color="#fff" />} 
+              theme={theme} dark={colorScheme === 'dark'}
+            />
+          </View>
+          <View style={[styles.column, { paddingTop: 20 }]}>
+            <InsightCard 
+              label="Drivers" value={stats.totalDrivers} color="#7c3aed" 
+              icon={<MaterialCommunityIcons name="account-tie" size={24} color="#fff" />} 
+              theme={theme} dark={colorScheme === 'dark'}
+            />
+            <InsightCard 
+              label="Students" value={stats.totalStudentsToday} color="#059669" 
+              icon={<Entypo name="graduation-cap" size={20} color="#fff" />} 
+              theme={theme} dark={colorScheme === 'dark'}
+            />
+          </View>
+        </View>
 
-      <View style={styles.card}>
-        <Entypo name="graduation-cap" size={26} color="#2563eb" />
-        <Text style={styles.cardTitle}>Students Today</Text>
-        <Text style={styles.cardValue}>{stats.totalStudentsToday}</Text>
+       
+        <TouchableOpacity style={[styles.refreshBanner, { backgroundColor: colorScheme === 'dark' ? '#1C1C1E' : '#fff' }]}>
+          <Ionicons name="refresh-circle" size={24} color="#4a90e2" />
+          <Text style={[styles.refreshText, { color: theme.text }]}>System is synced in real-time</Text>
+          <Ionicons name="chevron-forward" size={18} color={theme.icon} />
+        </TouchableOpacity>
       </View>
-
-      <View style={styles.card}>
-        <Feather name="user-check" size={26} color="#2563eb" />
-        <Text style={styles.cardTitle}>Total Teachers</Text>
-        <Text style={styles.cardValue}>{stats.totalTeachers}</Text>
-      </View>
-
-      <View style={styles.card}>
-        <FontAwesome5 name="calendar-check" size={26} color="#2563eb" />
-        <Text style={styles.cardTitle}>Attendance</Text>
-        <Text style={styles.cardValue}>{stats.attendancePercentage}%</Text>
-      </View>
-
-      <Text style={styles.footerNote}>Last updated in real time 🔄</Text>
     </ScrollView>
   );
 }
 
+const InsightCard = ({ label, value, color, icon, theme, dark }: any) => (
+  <View style={[styles.insightCard, { backgroundColor: dark ? '#1C1C1E' : '#fff' }]}>
+    <View style={[styles.insightIcon, { backgroundColor: color }]}>
+      {icon}
+    </View>
+    <Text style={[styles.insightValue, { color: theme.text }]}>{value}</Text>
+    <Text style={[styles.insightLabel, { color: theme.icon }]}>{label}</Text>
+  </View>
+);
+
 const styles = StyleSheet.create({
-  container: {
+  main: { flex: 1 },
+  centered: { flex: 1, justifyContent: 'center', alignItems: 'center' },
+  heroCard: {
+    margin: 20,
+    marginTop: 60,
+    borderRadius: 30,
     padding: 24,
-    backgroundColor: '#f8fafc',
-    flexGrow: 1,
+    ...Platform.select({
+      ios: { shadowColor: '#4a90e2', shadowOffset: { width: 0, height: 10 }, shadowOpacity: 0.3, shadowRadius: 20 },
+      android: { elevation: 10 },
+    }),
+  },
+  heroContent: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 },
+  heroLabel: { color: 'rgba(255,255,255,0.8)', fontSize: 16, fontWeight: '600' },
+  heroValue: { color: '#fff', fontSize: 48, fontWeight: '900' },
+  heroSubtext: { color: 'rgba(255,255,255,0.7)', fontSize: 12 },
+  heroIconCircle: { width: 80, height: 80, borderRadius: 40, backgroundColor: 'rgba(255,255,255,0.2)', justifyContent: 'center', alignItems: 'center' },
+  progressBarBg: { height: 6, backgroundColor: 'rgba(255,255,255,0.2)', borderRadius: 3 },
+  progressBarFill: { height: 6, backgroundColor: '#fff', borderRadius: 3 },
+  contentContainer: { paddingHorizontal: 20 },
+  sectionTitle: { fontSize: 20, fontWeight: '800', marginBottom: 15 },
+  gridContainer: { flexDirection: 'row', gap: 15 },
+  column: { flex: 1, gap: 15 },
+  insightCard: {
+    padding: 18,
+    borderRadius: 24,
     alignItems: 'center',
+    ...Platform.select({
+      ios: { shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.05, shadowRadius: 10 },
+      android: { elevation: 2 },
+    }),
   },
-  header: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    marginBottom: 24,
-    color: '#1f2937',
-    textAlign: 'center',
-  },
-  card: {
-    backgroundColor: '#ffffff',
-    width: '100%',
-    padding: 20,
-    marginBottom: 16,
-    borderRadius: 16,
+  insightIcon: { width: 44, height: 44, borderRadius: 15, justifyContent: 'center', alignItems: 'center', marginBottom: 12 },
+  insightValue: { fontSize: 22, fontWeight: 'bold' },
+  insightLabel: { fontSize: 13, fontWeight: '500' },
+  refreshBanner: {
+    marginTop: 30,
+    flexDirection: 'row',
     alignItems: 'center',
-    shadowColor: '#000',
-    shadowOpacity: 0.05,
-    shadowOffset: { width: 0, height: 2 },
-    shadowRadius: 8,
-    elevation: 3,
+    padding: 16,
+    borderRadius: 20,
+    marginBottom: 40
   },
-  cardTitle: {
-    fontSize: 16,
-    color: '#6b7280',
-    marginTop: 6,
-  },
-  cardValue: {
-    fontSize: 30,
-    fontWeight: 'bold',
-    color: '#2563eb',
-    marginTop: 4,
-  },
-  footerNote: {
-    fontSize: 12,
-    color: '#9ca3af',
-    marginTop: 20,
-    textAlign: 'center',
-  },
+  refreshText: { flex: 1, marginLeft: 12, fontWeight: '600', fontSize: 14 },
 });
 
 export default Home;

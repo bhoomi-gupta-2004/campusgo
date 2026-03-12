@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   View,
   Text,
@@ -6,17 +6,22 @@ import {
   ActivityIndicator,
   TouchableOpacity,
   ScrollView,
+  useColorScheme,
+  Platform,
 } from 'react-native';
 import { getAuth } from 'firebase/auth';
 import { doc, getDoc } from 'firebase/firestore';
-import { db } from '../../config/firebaseConfig';
+import { db } from '@/config/firbaseConfig';
 import { useRouter } from 'expo-router';
-import { Ionicons, FontAwesome5, MaterialCommunityIcons } from '@expo/vector-icons';
+import { Ionicons, FontAwesome5, MaterialCommunityIcons, Feather } from '@expo/vector-icons';
+import { Colors } from '@/constants/Colors'; 
 
 export default function HomeScreen() {
   const [user, setUser] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const router = useRouter();
+  const colorScheme = useColorScheme() ?? 'light';
+  const theme = Colors[colorScheme];
 
   useEffect(() => {
     const fetchUser = async () => {
@@ -44,123 +49,167 @@ export default function HomeScreen() {
 
   if (loading) {
     return (
-      <View style={styles.loader}>
+      <View style={[styles.loader, { backgroundColor: theme.background }]}>
         <ActivityIndicator size="large" color="#4a90e2" />
       </View>
     );
   }
 
-  const OptionCard = ({
-    icon,
-    label,
-    onPress,
-    color,
-  }: {
-    icon: React.ReactNode;
-    label: string;
-    onPress: () => void;
-    color?: string;
-  }) => (
-    <TouchableOpacity style={styles.card} onPress={onPress}>
-      {icon}
-      <Text style={[styles.cardText, { color: color || '#2f3542' }]}>{label}</Text>
+  const ActionTile = ({ icon, label, onPress, color }: any) => (
+    <TouchableOpacity 
+      activeOpacity={0.7}
+      style={[styles.tile, { backgroundColor: colorScheme === 'light' ? '#fff' : '#1C1C1E' }]} 
+      onPress={onPress}
+    >
+      <View style={[styles.iconCircle, { backgroundColor: color + '15' }]}>
+        {icon}
+      </View>
+      <Text style={[styles.tileLabel, { color: theme.text }]}>{label}</Text>
+      <Ionicons name="chevron-forward" size={18} color={theme.icon} style={styles.arrow} />
     </TouchableOpacity>
   );
 
   const renderAdminOptions = () => (
-    <>
-      <OptionCard
-        icon={<FontAwesome5 name="user-tie" size={24} color="#2d98da" />}
-        label="Manage Drivers & Routes"
+    <View style={styles.grid}>
+      <ActionTile
+        icon={<FontAwesome5 name="route" size={20} color="#2d98da" />}
+        label="Drivers & Routes"
+        color="#2d98da"
         onPress={() => router.push('/admin')}
       />
-      <OptionCard
-        icon={<MaterialCommunityIcons name="clipboard-list-outline" size={24} color="#20bf6b" />}
-        label="View Attendance Logs"
+      <ActionTile
+        icon={<MaterialCommunityIcons name="clipboard-check" size={24} color="#20bf6b" />}
+        label="Attendance Logs"
+        color="#20bf6b"
         onPress={() => router.push('/attendance')}
       />
-      <OptionCard
-        icon={<Ionicons name="cash-outline" size={24} color="#fa8231" />}
-        label="Bus Fee Management"
+      <ActionTile
+        icon={<Ionicons name="card" size={22} color="#fa8231" />}
+        label="Fee Management"
+        color="#fa8231"
         onPress={() => router.push('./bus-fee')}
       />
-    </>
+    </View>
   );
 
   const renderUserOptions = () => (
-    <>
-      <OptionCard
-        icon={<MaterialCommunityIcons name="check-decagram" size={24} color="#20bf6b" />}
+    <View style={styles.grid}>
+      <ActionTile
+        icon={<MaterialCommunityIcons name="calendar-check" size={24} color="#20bf6b" />}
         label="Mark Attendance"
+        color="#20bf6b"
         onPress={() => router.push('/attendance')}
       />
-      <OptionCard
-        icon={<Ionicons name="bus-outline" size={24} color="#4a90e2" />}
+      <ActionTile
+        icon={<Ionicons name="bus-sharp" size={22} color="#4a90e2" />}
         label="Track My Bus"
+        color="#4a90e2"
         onPress={() => router.push('/bus-location')}
       />
-      <OptionCard
-        icon={<Ionicons name="wallet-outline" size={24} color="#fa8231" />}
+      <ActionTile
+        icon={<Ionicons name="wallet" size={22} color="#fa8231" />}
         label="Pay Bus Fee"
+        color="#fa8231"
         onPress={() => router.push('./bus-fee')}
       />
-      <OptionCard
-        icon={<Ionicons name="person-circle-outline" size={24} color="#8854d0" />}
+      <ActionTile
+        icon={<Ionicons name="person-circle" size={24} color="#8854d0" />}
         label="My Profile"
+        color="#8854d0"
         onPress={() => router.push('/profile')}
       />
-    </>
+    </View>
   );
 
   return (
-    <ScrollView contentContainerStyle={styles.container}>
-      <Text style={styles.heading}>Welcome, {user?.name || 'User'} 👋</Text>
-      <Text style={styles.role}>Role: {user?.role}</Text>
+    <ScrollView 
+      style={[styles.main, { backgroundColor: theme.background }]} 
+      contentContainerStyle={styles.container}
+      showsVerticalScrollIndicator={false}
+    >
+      {/* Header Section */}
+      <View style={styles.header}>
+        <View>
+          <Text style={[styles.greeting, { color: theme.text }]}>
+            Hello, {user?.name?.split(' ')[0] || 'User'} 👋
+          </Text>
+          <View style={styles.roleBadge}>
+            <Text style={styles.roleText}>{user?.role?.toUpperCase() || 'STUDENT'}</Text>
+          </View>
+        </View>
+        <TouchableOpacity style={styles.profileBtn} onPress={() => router.push('/profile')}>
+          <View style={[styles.avatarCircle, { backgroundColor: '#4a90e2' }]}>
+             <Text style={styles.avatarInitial}>{user?.name?.charAt(0)}</Text>
+          </View>
+        </TouchableOpacity>
+      </View>
 
-      <View style={{ marginTop: 24, gap: 12 }}>
-        {user?.role === 'admin' ? renderAdminOptions() : renderUserOptions()}
+      <Text style={[styles.sectionTitle, { color: theme.text }]}>Quick Services</Text>
+      
+      {user?.role === 'admin' ? renderAdminOptions() : renderUserOptions()}
+
+      {/* Support Card Section */}
+      <View style={[styles.supportCard, { backgroundColor: '#4a90e2' }]}>
+        <View style={styles.supportContent}>
+          <Text style={styles.supportTitle}>Need Help?</Text>
+          <Text style={styles.supportSub}>Contact GNA University Transport Cell for assistance.</Text>
+        </View>
+        <Feather name="phone-call" size={28} color="rgba(255,255,255,0.5)" />
       </View>
     </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
-  loader: {
-    flex: 1,
-    justifyContent: 'center',
+  main: { flex: 1 },
+  loader: { flex: 1, justifyContent: 'center', alignItems: 'center' },
+  container: { padding: 24, paddingTop: 60 },
+  header: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
     alignItems: 'center',
-    backgroundColor: '#fff',
+    marginBottom: 40,
   },
-  container: {
-    padding: 20,
-    backgroundColor: '#f9fafd',
-    flexGrow: 1,
+  greeting: { fontSize: 26, fontWeight: '900', letterSpacing: -0.5 },
+  roleBadge: {
+    backgroundColor: 'rgba(74, 144, 226, 0.1)',
+    alignSelf: 'flex-start',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 8,
+    marginTop: 6,
   },
-  heading: {
-    fontSize: 28,
-    fontWeight: 'bold',
-    color: '#1e272e',
-  },
-  role: {
-    fontSize: 16,
-    color: '#8395a7',
-    marginTop: 4,
-  },
-  card: {
-    backgroundColor: '#ffffff',
-    padding: 16,
-    borderRadius: 12,
+  roleText: { color: '#4a90e2', fontSize: 10, fontWeight: '800', letterSpacing: 1 },
+  avatarCircle: { width: 50, height: 50, borderRadius: 25, justifyContent: 'center', alignItems: 'center', borderWidth: 2, borderColor: '#fff' },
+  avatarInitial: { color: '#fff', fontWeight: 'bold', fontSize: 20 },
+  sectionTitle: { fontSize: 18, fontWeight: '800', marginBottom: 20, marginLeft: 4 },
+  grid: { gap: 16 },
+  tile: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 16,
-    elevation: 3,
-    shadowColor: '#000',
-    shadowOpacity: 0.07,
-    shadowRadius: 6,
-    shadowOffset: { width: 0, height: 3 },
+    padding: 18,
+    borderRadius: 24,
+    ...Platform.select({
+      ios: { shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.05, shadowRadius: 12 },
+      android: { elevation: 3 },
+    }),
   },
-  cardText: {
-    fontSize: 18,
-    fontWeight: '600',
+  iconCircle: { width: 52, height: 52, borderRadius: 18, justifyContent: 'center', alignItems: 'center', marginRight: 16 },
+  tileLabel: { flex: 1, fontSize: 17, fontWeight: '700', letterSpacing: -0.3 },
+  arrow: { opacity: 0.5 },
+  supportCard: {
+    marginTop: 32,
+    padding: 24,
+    borderRadius: 28,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 40,
   },
+  supportContent: { flex: 1, marginRight: 12 },
+  supportTitle: { color: '#fff', fontSize: 20, fontWeight: '800' },
+  supportSub: { color: 'rgba(255,255,255,0.8)', fontSize: 13, marginTop: 4, lineHeight: 18 },
+
+   profileBtn: { marginTop: 12 },
+  
 });
