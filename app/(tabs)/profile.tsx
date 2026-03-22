@@ -34,34 +34,34 @@ export default function Profile() {
   const colorScheme = useColorScheme() ?? "light";
   const theme = Colors[colorScheme];
   useEffect(() => {
-  const fetchUserDataAndPayment = async () => {
-    const user = getAuth().currentUser;
-    if (!user) return;
+    const fetchUserDataAndPayment = async () => {
+      const user = getAuth().currentUser;
+      if (!user) return;
 
-    try {
-      // 1️⃣ get user
-      const docSnap = await getDoc(doc(db, "users", user.uid));
-      if (!docSnap.exists()) return;
+      try {
+        // 1️⃣ get user
+        const docSnap = await getDoc(doc(db, "users", user.uid));
+        if (!docSnap.exists()) return;
 
-      const data = docSnap.data();
-      setUserData(data);
+        const data = docSnap.data();
+        setUserData(data);
 
-      // 2️⃣ ONLY students have payments
-      if (data.role?.toLowerCase() === "student") {
-        const id = getPaymentDocId(user.uid);
-        const snap = await getDoc(doc(db, "busPayments", id));
-        setPaid(snap.exists());
+        // 2️⃣ ONLY students have payments
+        if (data.role?.toLowerCase() === "student") {
+          const id = getPaymentDocId(user.uid);
+          const snap = await getDoc(doc(db, "busPayments", id));
+          setPaid(snap.exists());
+        }
+      } catch (err) {
+        console.log("Error fetching profile/payment:", err);
+      } finally {
+        setLoading(false);
+        setCheckingPayment(false);
       }
-    } catch (err) {
-      console.log("Error fetching profile/payment:", err);
-    } finally {
-      setLoading(false);
-      setCheckingPayment(false);
-    }
-  };
+    };
 
-  fetchUserDataAndPayment();
-}, []);
+    fetchUserDataAndPayment();
+  }, []);
 
   const handleLogout = async () => {
     try {
@@ -72,37 +72,37 @@ export default function Profile() {
     }
   };
 
-const payFees = async () => {
-  const user = getAuth().currentUser;
-  if (!user || userData?.role?.toLowerCase() !== "student") {
-    Alert.alert("Not Allowed", "Only students can pay fees");
-    return;
-  }
+  const payFees = async () => {
+    const user = getAuth().currentUser;
+    if (!user || userData?.role?.toLowerCase() !== "student") {
+      Alert.alert("Not Allowed", "Only students can pay fees");
+      return;
+    }
 
-  Alert.alert("Demo Payment", "Simulate ₹1200 bus fee payment?", [
-    { text: "Cancel", style: "cancel" },
-    {
-      text: "Pay",
-      onPress: async () => {
-        const id = getPaymentDocId(user.uid);
+    Alert.alert("Demo Payment", "Simulate ₹1200 bus fee payment?", [
+      { text: "Cancel", style: "cancel" },
+      {
+        text: "Pay",
+        onPress: async () => {
+          const id = getPaymentDocId(user.uid);
 
-        await setDoc(doc(db, "busPayments", id), {
-          uid: user.uid,
-          name: userData?.name || "Student",
-          busNumber: userData?.busNumber || "N/A",
-          month: getCurrentMonthKey(),
-          amount: 1200,
-          status: "paid",
-          method: "demo",
-          paidAt: serverTimestamp(),
-        });
+          await setDoc(doc(db, "busPayments", id), {
+            uid: user.uid,
+            name: userData?.name || "Student",
+            busNumber: userData?.busNumber || "N/A",
+            month: getCurrentMonthKey(),
+            amount: 1200,
+            status: "paid",
+            method: "demo",
+            paidAt: serverTimestamp(),
+          });
 
-        setPaid(true);
-        Alert.alert("Payment Successful", "Receipt generated (Demo)");
+          setPaid(true);
+          Alert.alert("Payment Successful", "Receipt generated (Demo)");
+        },
       },
-    },
-  ]);
-};
+    ]);
+  };
 
   if (loading)
     return (
@@ -110,8 +110,7 @@ const payFees = async () => {
         <ActivityIndicator size="large" color="#4a90e2" />
       </View>
     );
-const isStudent =
-  userData?.role?.toLowerCase?.() === "student";
+  const isStudent = userData?.role?.toLowerCase?.() === "student";
 
   return (
     <ScrollView
@@ -119,7 +118,6 @@ const isStudent =
       contentContainerStyle={styles.container}
       showsVerticalScrollIndicator={false}
     >
-
       {/* 1. IDENTITY CARD (The Hero) */}
       <View
         style={[
@@ -203,41 +201,43 @@ const isStudent =
         />
       </View>
 
-     {/* Payment Section — Only for Students */}
-{isStudent && (
-  <View style={{ marginTop: 25 }}>
-    {checkingPayment ? (
-      <ActivityIndicator color="#4a90e2" />
-    ) : paid ? (
-      <View
-        style={{
-          backgroundColor: "#20bf6b22",
-          padding: 16,
-          borderRadius: 16,
-          alignItems: "center",
-        }}
-      >
-        <Text style={{ color: "#20bf6b", fontWeight: "800", fontSize: 16 }}>
-          Fees Paid for this month ✅
-        </Text>
-      </View>
-    ) : (
-      <TouchableOpacity
-        onPress={payFees}
-        style={{
-          backgroundColor: "#4a90e2",
-          padding: 18,
-          borderRadius: 18,
-          alignItems: "center",
-        }}
-      >
-        <Text style={{ color: "#fff", fontWeight: "800", fontSize: 16 }}>
-          Pay Bus Fees ₹1200
-        </Text>
-      </TouchableOpacity>
-    )}
-  </View>
-)}
+      {/* Payment Section — Only for Students */}
+      {isStudent && (
+        <View style={{ marginTop: 25 }}>
+          {checkingPayment ? (
+            <ActivityIndicator color="#4a90e2" />
+          ) : paid ? (
+            <View
+              style={{
+                backgroundColor: "#20bf6b22",
+                padding: 16,
+                borderRadius: 16,
+                alignItems: "center",
+              }}
+            >
+              <Text
+                style={{ color: "#20bf6b", fontWeight: "800", fontSize: 16 }}
+              >
+                Fees Paid for this month ✅
+              </Text>
+            </View>
+          ) : (
+            <TouchableOpacity
+              onPress={payFees}
+              style={{
+                backgroundColor: "#4a90e2",
+                padding: 18,
+                borderRadius: 18,
+                alignItems: "center",
+              }}
+            >
+              <Text style={{ color: "#fff", fontWeight: "800", fontSize: 16 }}>
+                Pay Bus Fees ₹1200
+              </Text>
+            </TouchableOpacity>
+          )}
+        </View>
+      )}
       {/* 3. LOGOUT (Minimalist style) */}
       <TouchableOpacity style={styles.signoutWrap} onPress={handleLogout}>
         <Text style={styles.signoutText}>Log Out</Text>

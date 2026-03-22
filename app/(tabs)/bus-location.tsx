@@ -1,182 +1,214 @@
-import { Ionicons } from "@expo/vector-icons";
+import { db } from "@/config/firbaseConfig";
 import * as Location from "expo-location";
-import React, { useEffect, useRef, useState } from "react";
+import { getAuth } from "firebase/auth";
 import {
-    ActivityIndicator,
-    Alert,
-    Dimensions,
-    Pressable,
-    ScrollView,
-    StyleSheet,
-    Text,
-    View,
-} from "react-native";
-import MapView, { Marker } from "react-native-maps";
+    collection,
+    doc,
+    onSnapshot,
+    query,
+    updateDoc,
+    where,
+} from "firebase/firestore";
+import React, { useEffect, useState } from "react";
+import { ActivityIndicator, Alert, StyleSheet, Text, View } from "react-native";
+import MapView, { Marker, PROVIDER_GOOGLE } from "react-native-maps";
 
-const { width, height } = Dimensions.get("window");
-
-function BusLocation() {
-  const [location, setLocation] = useState<Location.LocationObject | null>(
-    null,
-  );
-  const [address, setAddress] = useState<string | null>(null);
-  const [errorMsg, setErrorMsg] = useState<string | null>(null);
+export default function BusTracking() {
+  const [busLocations, setBusLocations] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-  const intervalRef = useRef<number | null>(null);
 
-  const fetchLocation = async () => {
-    try {
-      setLoading(true);
-      let { status } = await Location.requestForegroundPermissionsAsync();
-      if (status !== "granted") {
-        setErrorMsg("Permission to access location was denied");
-        Alert.alert(
-          "Location Permission Denied",
-          "Please enable location services.",
-        );
-        setLoading(false);
-        return;
-      }
+  const auth = getAuth();
+  const user = auth.currentUser;
 
-      const currentLocation = await Location.getCurrentPositionAsync({});
-      setLocation(currentLocation);
-
-      const reverseGeocode = await Location.reverseGeocodeAsync({
-        latitude: currentLocation.coords.latitude,
-        longitude: currentLocation.coords.longitude,
-      });
-
-      if (reverseGeocode.length > 0) {
-        const { city, region, country } = reverseGeocode[0];
-        setAddress(`${city || ""}, ${region || ""}, ${country || ""}`);
-      }
-    } catch (err) {
-      Alert.alert("Error", "Could not fetch location.");
-    } finally {
-      setLoading(false);
-    }
-  };
+  // 🔹 You should fetch role + busNumber from Firestore user collection
+  const [userData, setUserData] = useState<any>(null);
 
   useEffect(() => {
-    fetchLocation();
-    intervalRef.current = setInterval(fetchLocation, 5 * 60 * 1000); // every 5 minutes
+    if (!user) return;
 
-    return () => {
-      if (intervalRef.current) clearInterval(intervalRef.current);
-    };
+    const unsubscribeUser = onSnapshot(
+      doc(db, "users", user.uid),
+      (docSnap) => {
+        if (docSnap.exists()) {
+          setUserData(docSnap.data());
+        }
+      },
+    );
+
+    return () => unsubscribeUser();
   }, []);
 
-  return (
-    <ScrollView style={styles.container}>
-      <Text style={styles.title}>🚌 Live Bus Location</Text>
+  useEffect(() => {
+    if (!userData) return;
 
-      {errorMsg ? (
-        <Text style={styles.error}>{errorMsg}</Text>
-      ) : loading || !location ? (
+    // ================= DRIVER =================
+    if (userData.role === "Driver") {
+      let locationSubscription: any;
+
+      const startTracking = async () => {
+        let { status } = await Location.requestForegroundPermissionsAsync();
+
+        if (status !== "granted") {
+          Alert.alert("Permission Denied");
+          setLoading(false);
+          return;
+        }
+
+        locationSubscription = await Location.watchPositionAsync(
+          {
+            accuracy: Location.Accuracy.Balanced,
+            timeInterval: 5000,
+            distanceInterval: 5,
+          },
+          async (loc) => {
+            try {
+              const driverRef = doc(db, "drivers", user.uid);
+
+              await updateDoc(driverRef, {
+                lastKnownLat: loc.coords.latitude,
+                lastKnownLng: loc.coords.longitude,
+                lastUpdated: new Date().toISOString(),
+              });
+
+              setBusLocations([
+                {
+                  latitude: loc.coords.latitude,
+                  longitude: loc.coords.longitude,
+                  name: "You",
+                  busNumber: userData.busNumber,
+                },
+              ]);
+            } catch (e) {
+              console.log(e);
+            }
+          },
+        );
+
+        setLoading(false);
+      };
+
+      startTracking();
+
+      return () => {
+        if (locationSubscription) locationSubscription.remove();
+      };
+    }
+
+    // ================= STUDENT =================
+    if (userData.role === "Student") {
+     const q = collection(db, "drivers");
+
+      const unsubscribe = onSnapshot(q, (snapshot) => {
+        const buses: any[] = [];
+
+        snapshot.forEach((doc) => {
+          const data = doc.data();
+
+         if (data.lastKnownLat != null && data.lastKnownLng != null) {
+            buses.push({
+              latitude: data.lastKnownLat,
+              longitude: data.lastKnownLng,
+              name: data.name,
+              busNumber: data.busNumber,
+            });
+          }
+        });
+
+        setBusLocations(buses);
+        setLoading(false);
+      });
+
+      return () => unsubscribe();
+    }
+  }, [userData]);
+
+  // ================= UI =================
+  if (loading) {
+    return (
+      <View style={styles.center}>
         <ActivityIndicator size="large" color="#4a90e2" />
-      ) : (
-        <>
-          <MapView
-            style={styles.map}
-            region={{
-              latitude: location.coords.latitude,
-              longitude: location.coords.longitude,
-              latitudeDelta: 0.01,
-              longitudeDelta: 0.01,
+        <Text>Loading...</Text>
+      </View>
+    );
+  }
+
+  return (
+    <View style={styles.container}>
+      <MapView
+        provider={PROVIDER_GOOGLE}
+        style={styles.map}
+        region={{
+          latitude: busLocations[0]?.latitude || 30.901,
+          longitude: busLocations[0]?.longitude || 75.857,
+          latitudeDelta: 0.01,
+          longitudeDelta: 0.01,
+        }}
+      >
+        {busLocations.map((bus, index) => (
+          <Marker
+            key={index}
+            coordinate={{
+              latitude: bus.latitude,
+              longitude: bus.longitude,
             }}
-            showsUserLocation
+            title={`Bus ${bus.busNumber}`}
+            description={`Driver: ${bus.name}`}
           >
-            <Marker
-              coordinate={{
-                latitude: location.coords.latitude,
-                longitude: location.coords.longitude,
-              }}
-              title="Bus Location"
-              description={address || "Current location"}
-            />
-          </MapView>
+            <View style={styles.markerContainer}>
+              <Text style={{ fontSize: 30 }}>🚌</Text>
+            </View>
+          </Marker>
+        ))}
+      </MapView>
 
-          <View style={styles.infoCard}>
-            {address && (
-              <Text style={styles.label}>
-                Address: <Text style={styles.value}>{address}</Text>
-              </Text>
-            )}
-            <Text style={styles.timestamp}>
-              Last updated: {new Date(location.timestamp).toLocaleTimeString()}
-            </Text>
+      {busLocations.length === 0 && (
+  <Text style={{ position: "absolute", top: 100 }}>
+    🚫 No buses available
+  </Text>
+)}
 
-            <Pressable onPress={fetchLocation} style={styles.refreshButton}>
-              <Ionicons name="refresh-circle" size={28} color="white" />
-              <Text style={styles.refreshText}>Refresh</Text>
-            </Pressable>
-          </View>
-        </>
-      )}
-    </ScrollView>
+      <View style={styles.overlay}>
+        <Text style={styles.statusText}>
+          {userData.role === "Driver"
+            ? "🔴 Live Tracking"
+            : "🟢 Tracking Route Buses"}
+        </Text>
+      </View>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
+  container: { flex: 1 },
+  map: { width: "100%", height: "100%" },
+  center: {
     flex: 1,
-    backgroundColor: "#ecf0f1",
-    paddingVertical: 40,
-  },
-  title: {
-    fontSize: 24,
-    fontWeight: "bold",
-    textAlign: "center",
-    marginBottom: 10,
-    color: "#34495e",
-  },
-  error: {
-    color: "red",
-    fontSize: 16,
-    textAlign: "center",
-    margin: 20,
-  },
-  map: {
-    width: width,
-    height: height * 0.5,
-  },
-  infoCard: {
-    backgroundColor: "#fff",
-    padding: 18,
-    margin: 14,
-    borderRadius: 14,
-    elevation: 4,
-  },
-  label: {
-    fontWeight: "600",
-    fontSize: 15,
-    marginTop: 6,
-    color: "#444",
-  },
-  value: {
-    fontWeight: "normal",
-    color: "#555",
-  },
-  timestamp: {
-    marginTop: 10,
-    fontSize: 12,
-    color: "#777",
-  },
-  refreshButton: {
-    flexDirection: "row",
+    justifyContent: "center",
     alignItems: "center",
-    backgroundColor: "#4a90e2",
-    marginTop: 16,
-    paddingHorizontal: 14,
+    backgroundColor: "#f8f9fa",
+  },
+  loadingText: { marginTop: 10, color: "#666" },
+  markerContainer: {
+    backgroundColor: "white",
+    padding: 5,
+    borderRadius: 20,
+    borderWidth: 2,
+    borderColor: "#4a90e2",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
+    elevation: 5,
+  },
+  overlay: {
+    position: "absolute",
+    top: 50,
+    alignSelf: "center",
+    backgroundColor: "rgba(255,255,255,0.9)",
+    paddingHorizontal: 20,
     paddingVertical: 10,
-    borderRadius: 30,
-    alignSelf: "flex-start",
+    borderRadius: 25,
+    elevation: 5,
   },
-  refreshText: {
-    marginLeft: 8,
-    color: "#fff",
-    fontWeight: "600",
-  },
+  statusText: { fontWeight: "bold", color: "#333" },
 });
-
-export default BusLocation;
