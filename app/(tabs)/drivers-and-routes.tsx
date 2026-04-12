@@ -13,7 +13,7 @@ import {
 } from 'react-native';
 import { Ionicons, FontAwesome5, MaterialIcons, Feather } from '@expo/vector-icons';
 import { collection, getDocs, doc, getDoc } from 'firebase/firestore';
-import { db } from '@/config/firbaseConfig';
+import { db } from '@/config/firebaseConfig';
 import { Colors } from '@/constants/Colors'; // Your optimized theme
 
 interface Driver {

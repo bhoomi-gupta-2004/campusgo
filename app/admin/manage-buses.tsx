@@ -4,10 +4,10 @@ import {
   Alert, Image, useColorScheme, Platform, ActivityIndicator
 } from 'react-native';
 import { collection, addDoc, getDocs, deleteDoc, doc, updateDoc } from 'firebase/firestore';
-import { db } from '@/config/firbaseConfig';
+import { db } from '@/config/firebaseConfig';
 import { FontAwesome5, Ionicons, MaterialIcons, MaterialCommunityIcons, Feather } from '@expo/vector-icons';
 import { Picker } from '@react-native-picker/picker';
-import { Colors } from '@/constants/Colors'; // Your optimized theme
+import { Colors } from '@/constants/Colors'; 
 
 export default function ManageBuses() {
   const [name, setName] = useState('');

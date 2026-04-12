@@ -14,7 +14,7 @@ import {
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { signInWithEmailAndPassword } from 'firebase/auth';
-import { auth } from '@/config/firbaseConfig';
+import { auth } from '@/config/firebaseConfig';
 import { Colors } from '@/constants/Colors'; 
 import { Ionicons } from '@expo/vector-icons';
 
@@ -22,21 +22,37 @@ export default function LoginScreen() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
-  
+  const [error, setError] = useState(''); // ✅ added
+
   const router = useRouter();
   const colorScheme = useColorScheme() ?? 'light';
   const theme = Colors[colorScheme];
 
   const handleLogin = async () => {
     if (!email || !password) {
-      Alert.alert('Error', 'Please enter both email and password');
+      setError("Please enter both email and password");
       return;
     }
+
+    setError(""); // clear previous error
+
     try {
       await signInWithEmailAndPassword(auth, email.trim(), password);
       router.replace('/(tabs)/home');
-    } catch (error: any) {
-      Alert.alert('Login Failed', error.message);
+    } catch (err: any) {
+      let message = "Invalid email or password";
+
+      if (err.code === "auth/user-not-found") {
+        message = "No account found with this email";
+      } else if (err.code === "auth/wrong-password") {
+        message = "Incorrect password";
+      } else if (err.code === "auth/invalid-email") {
+        message = "Invalid email format";
+      } else if (err.code === "auth/invalid-credential") {
+        message = "Invalid email or password";
+      }
+
+      setError(message); // ✅ show below field
     }
   };
 
@@ -66,6 +82,7 @@ export default function LoginScreen() {
 
           {/* Form Section */}
           <View style={styles.form}>
+            {/* Email */}
             <View style={[styles.inputWrapper, { backgroundColor: colorScheme === 'light' ? '#F2F2F7' : '#2C2C2E' }]}>
               <Ionicons name="mail-outline" size={20} color={theme.icon} style={styles.inputIcon} />
               <TextInput
@@ -73,12 +90,16 @@ export default function LoginScreen() {
                 placeholder="Email Address"
                 placeholderTextColor={theme.icon}
                 value={email}
-                onChangeText={setEmail}
+                onChangeText={(text) => {
+                  setEmail(text);
+                  setError(""); 
+                }}
                 keyboardType="email-address"
                 autoCapitalize="none"
               />
             </View>
 
+            {/* Password */}
             <View style={[styles.inputWrapper, { backgroundColor: colorScheme === 'light' ? '#F2F2F7' : '#2C2C2E' }]}>
               <Ionicons name="lock-closed-outline" size={20} color={theme.icon} style={styles.inputIcon} />
               <TextInput
@@ -86,7 +107,10 @@ export default function LoginScreen() {
                 placeholder="Password"
                 placeholderTextColor={theme.icon}
                 value={password}
-                onChangeText={setPassword}
+                onChangeText={(text) => {
+                  setPassword(text);
+                  setError(""); 
+                }}
                 secureTextEntry={!showPassword}
               />
               <TouchableOpacity onPress={() => setShowPassword(!showPassword)}>
@@ -98,6 +122,14 @@ export default function LoginScreen() {
               </TouchableOpacity>
             </View>
 
+            {/* ✅ ERROR MESSAGE BELOW PASSWORD */}
+            {error ? (
+              <Text style={{ color: "red", marginBottom: 10 }}>
+                {error}
+              </Text>
+            ) : null}
+
+            {/* Button */}
             <TouchableOpacity style={styles.loginButton} onPress={handleLogin}>
               <Text style={styles.loginButtonText}>Log In</Text>
               <Ionicons name="arrow-forward-circle" size={24} color="#fff" />

@@ -1,4 +1,4 @@
-import { Colors } from "@/constants/Colors"; // Your optimized theme
+import { Colors } from "@/constants/Colors"; 
 import {
   FontAwesome5,
   Ionicons,
@@ -16,28 +16,27 @@ export default function TabsLayout() {
   return (
     <Tabs
       screenOptions={{
-        tabBarActiveTintColor: "#4a90e2", // Professional Blue
-        tabBarInactiveTintColor: theme.icon, // Dynamic gray
+        tabBarActiveTintColor: "#4a90e2", 
+        tabBarInactiveTintColor: theme.icon, 
         tabBarLabelStyle: {
           fontSize: 11,
           fontWeight: "700",
-          // Removed Fonts.sans to prevent the "undefined" error
         },
         tabBarStyle: {
           height: 60 + insets.bottom,
           paddingBottom: insets.bottom > 0 ? insets.bottom : 10,
           paddingTop: 8,
-          backgroundColor: theme.background, // Matches page background
+          backgroundColor: theme.background, 
           borderTopWidth: 1,
-          borderTopColor: theme.border || "rgba(128,128,128,0.1)", // Dynamic border
+          borderTopColor: theme.border || "rgba(128,128,128,0.1)", 
           elevation: 0,
           shadowOpacity: 0,
         },
         headerStyle: {
-          backgroundColor: theme.background, // Dynamic header
+          backgroundColor: theme.background, 
         },
         headerTitleStyle: {
-          color: theme.text, // Dynamic text
+          color: theme.text, 
           fontWeight: "800",
         },
       }}

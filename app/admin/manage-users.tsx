@@ -1,4 +1,4 @@
-import { db, firebaseConfig } from "@/config/firbaseConfig";
+import { db, firebaseConfig } from "@/config/firebaseConfig";
 import { Colors } from "@/constants/Colors";
 import { Feather, FontAwesome5, Ionicons } from "@expo/vector-icons";
 import { Picker } from "@react-native-picker/picker";
@@ -386,27 +386,36 @@ export default function ManageUsers() {
               />
 
               <Text style={styles.label}>SYSTEM ROLE</Text>
-              <View
-                style={[
-                  styles.pickerBox,
-                  {
-                    backgroundColor:
-                      colorScheme === "light" ? "#F2F2F7" : "#2C2C2E",
-                  },
-                ]}
-              >
-                <Picker
-                  selectedValue={role}
-                  onValueChange={setRole}
-                  style={{ color: theme.text }}
-                >
-                  <Picker.Item label="Student" value="Student" />
-                  <Picker.Item label="Teacher" value="Teacher" />
-                  <Picker.Item label="Admin" value="Admin" />
-                  <Picker.Item label="Driver" value="Driver" />
-                </Picker>
-              </View>
+        <View style={styles.roleContainer}>
+  {["Student", "Teacher", "Admin", "Driver"].map((item) => {
+    const isSelected = role === item;
 
+    return (
+      <TouchableOpacity
+        key={item}
+        onPress={() => setRole(item)}
+        style={[
+          styles.roleChip,
+          {
+            backgroundColor: isSelected
+              ? getRoleColor(item)
+              : "transparent",
+            borderColor: getRoleColor(item),
+          },
+        ]}
+      >
+        <Text
+          style={{
+            color: isSelected ? "#fff" : getRoleColor(item),
+            fontWeight: "700",
+          }}
+        >
+          {item}
+        </Text>
+      </TouchableOpacity>
+    );
+  })}
+</View>
               <TouchableOpacity
                 style={styles.saveBtn}
                 onPress={selectedUser ? handleUpdate : handleCreateUserWithAuth}
@@ -429,6 +438,20 @@ export default function ManageUsers() {
 }
 
 const styles = StyleSheet.create({
+
+  roleContainer: {
+  flexDirection: "row",
+  flexWrap: "wrap",
+  gap: 10,
+  marginBottom: 25,
+},
+
+roleChip: {
+  paddingVertical: 10,
+  paddingHorizontal: 16,
+  borderRadius: 20,
+  borderWidth: 1.5,
+},
   container: { flex: 1 },
   center: { flex: 1, justifyContent: "center", alignItems: "center" },
   header: {

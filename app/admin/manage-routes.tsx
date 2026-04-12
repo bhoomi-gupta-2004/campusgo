@@ -20,9 +20,9 @@ import {
   doc,
   updateDoc
 } from 'firebase/firestore';
-import { db } from '@/config/firbaseConfig';
+import { db } from '@/config/firebaseConfig';
 import { MaterialIcons, Ionicons, Feather } from '@expo/vector-icons';
-import { Colors } from '@/constants/Colors'; // Your optimized theme
+import { Colors } from '@/constants/Colors'; 
 
 export default function ManageRoutes() {
   const [routes, setRoutes] = useState<any[]>([]);

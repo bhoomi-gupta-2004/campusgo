@@ -21,7 +21,7 @@ import {
 } from "react-native";
 // Import Firestore tools
 import { collection, getDocs } from "firebase/firestore";
-import { db } from "@/config/firbaseConfig";
+import { db } from "@/config/firebaseConfig";
 
 const { width } = Dimensions.get("window");
 
