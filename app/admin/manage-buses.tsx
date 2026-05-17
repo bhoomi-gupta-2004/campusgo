@@ -1,13 +1,20 @@
-import React, { useState, useEffect } from 'react';
-import {
-  View, Text, TextInput, StyleSheet, TouchableOpacity, ScrollView,
-  Alert, Image, useColorScheme, Platform, ActivityIndicator
-} from 'react-native';
-import { collection, addDoc, getDocs, deleteDoc, doc, updateDoc } from 'firebase/firestore';
 import { db } from '@/config/firebaseConfig';
-import { FontAwesome5, Ionicons, MaterialIcons, MaterialCommunityIcons, Feather } from '@expo/vector-icons';
+import { Colors } from '@/constants/Colors';
+import { Feather, FontAwesome5, Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { Picker } from '@react-native-picker/picker';
-import { Colors } from '@/constants/Colors'; 
+import { addDoc, collection, deleteDoc, doc, getDocs, updateDoc } from 'firebase/firestore';
+import React, { useEffect, useState } from 'react';
+import {
+  ActivityIndicator,
+  Alert,
+  Platform,
+  ScrollView,
+  StyleSheet,
+  Text, TextInput,
+  TouchableOpacity,
+  useColorScheme,
+  View
+} from 'react-native';
 
 export default function ManageBuses() {
   const [name, setName] = useState('');
@@ -147,18 +154,41 @@ export default function ManageBuses() {
             style={[styles.input, { color: theme.text }]}
           />
         </View>
+<View
+  style={[
+    styles.pickerBox,
+    {
+      backgroundColor:
+        colorScheme === 'light' ? '#F9FAFB' : '#2C2C2E',
+      borderColor:
+        colorScheme === 'light' ? '#D1D5DB' : '#444',
+    },
+  ]}
+>
+  <Picker
+    selectedValue={routeId}
+    onValueChange={(itemValue) => setRouteId(itemValue)}
+    style={styles.picker}
+    dropdownIconColor={theme.icon}
+  >
+    {/* Placeholder */}
+    <Picker.Item
+      label="Select Route Assignment"
+      value=""
+      color="#888"
+    />
 
-        <View style={[styles.pickerBox, { backgroundColor: colorScheme === 'light' ? '#F2F2F7' : '#2C2C2E' }]}>
-          <Picker
-            selectedValue={routeId}
-            onValueChange={setRouteId}
-            style={{ color: theme.text }}
-            dropdownIconColor={theme.icon}
-          >
-            <Picker.Item label="Select Route Assignment" value="" color={theme.icon} />
-            {routes.map(r => <Picker.Item key={r.id} label={r.name} value={r.id} />)}
-          </Picker>
-        </View>
+    {/* Routes */}
+    {routes.map((r) => (
+      <Picker.Item
+        key={r.id}
+        label={r.name || "Unnamed Route"}
+        value={r.id}
+        color="#000" // Best possible for light mode
+      />
+    ))}
+  </Picker>
+</View>
 
         <TouchableOpacity style={styles.submitBtn} onPress={handleAddOrUpdateDriver}>
           <Text style={styles.submitBtnText}>{editingId ? 'Update Record' : 'Register to Fleet'}</Text>
@@ -232,7 +262,19 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   input: { flex: 1, marginLeft: 12, fontSize: 16, fontWeight: '500' },
-  pickerBox: { borderRadius: 14, marginBottom: 16, height: 58, justifyContent: 'center' },
+ pickerBox: {
+  borderRadius: 14,
+  marginBottom: 16,
+  height: 55,
+  justifyContent: 'center',
+  borderWidth: 1,
+  overflow: 'hidden', // fixes Android UI
+},
+
+picker: {
+  height: 55,
+  width: '100%',
+},
   submitBtn: {
     backgroundColor: '#4a90e2',
     height: 58,
